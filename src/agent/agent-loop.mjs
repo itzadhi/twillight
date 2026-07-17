@@ -49,9 +49,33 @@ export function polishAssistantText(value) {
   const whitespace = (text.match(/\s/g) || []).length
   const camelJams = (text.match(/[a-z][A-Z]/g) || []).length
   const punctuationJams = (text.match(/[.!?;:][A-Za-z0-9"']/g) || []).length
-  const looksCompressed = text.length > 80 && whitespace < text.length / 28 && (camelJams + punctuationJams) > 3
+  const knownJams = /(Theuser|Thesystem|Ishould|Thislooks|Theyprobably|Inmanycontexts|Themodel|However|Butwe|Wecould|Orewould|Idon|Whatcan|Whatwould|yourmodelname)/.test(text)
+  const looksCompressed =
+    text.length > 80 && whitespace < text.length / 28 && (camelJams + punctuationJams) > 3
+    || text.length > 40 && knownJams && whitespace < text.length / 12
   if (!looksCompressed) return text
   text = text
+    .replace(/\bTheuserasks/g, "The user asks")
+    .replace(/\bThesystemsays/g, "The system says")
+    .replace(/\bThislookslike/g, "This looks like")
+    .replace(/\bTheyprobably/g, "They probably")
+    .replace(/\bIshouldanswer/g, "I should answer")
+    .replace(/\bTheuser/g, "The user")
+    .replace(/\bThesystem/g, "The system")
+    .replace(/\bIshould/g, "I should")
+    .replace(/\bThislooks/g, "This looks")
+    .replace(/\bTheyprobably/g, "They probably")
+    .replace(/\bInmanycontexts/g, "In many contexts")
+    .replace(/\bThemodel/g, "The model")
+    .replace(/\bHowever/g, " However")
+    .replace(/\bButwe/g, " But we")
+    .replace(/\bWecould/g, " We could")
+    .replace(/\bOrewould/g, " Or would")
+    .replace(/\bIdon/g, "I don")
+    .replace(/\bWhatcan/g, "What can")
+    .replace(/\bWhatwould/g, "What would")
+    .replace(/\byourmodelname/g, "your model name")
+    .replace(/\bmodelname/g, "model name")
     .replace(/([.!?;:])(?=[A-Za-z0-9"'])/g, "$1 ")
     .replace(/([a-z])(?=[A-Z][a-z])/g, "$1 ")
     .replace(/([a-zA-Z])(?=\d)/g, "$1 ")

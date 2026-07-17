@@ -462,8 +462,10 @@ async function handleInput(state, input) {
   if (input === "/mcp" || input === "/mp") return mcpStatus(state)
   if (input === "/tools" || input === "/tools-ui") return toolsStatus(state)
   if (input.startsWith("/tool ")) return setTool(state, input.slice(6).trim())
+  if (input === "/tool") return toolsStatus(state)
   if (input.startsWith("/tool-preset ")) return setToolPreset(state, input.slice(13).trim())
   if (input.startsWith("/do ")) return runSelectedCommand(state, input.slice(4).trim())
+  if (input === "/do") return usageBox(state, "/do", "Use /do <number> after opening /cmd.")
   if (input === "/clear") {
     state.messages = []
     state.turns = 0
@@ -472,6 +474,7 @@ async function handleInput(state, input) {
     state.ui.dim("[Twillight] memory cleared")
     return true
   }
+  if (input === "/model") return modelStatus(state)
   if (input.startsWith("/model ")) {
     const value = input.slice(7).trim()
     if (/^\d+$/.test(value)) return safeSlash(state, `/use ${value}`)
@@ -494,6 +497,7 @@ async function handleInput(state, input) {
   if (input === "/workspace") return setPermission(state, "workspace")
   if (input === "/standard") return setPermission(state, "standard")
   if (input === "/full-access") return setPermission(state, "full-access")
+  if (input === "/image") return usageBox(state, "/image", "Use /image C:\\path\\shot.png or paste an image path into chat.")
   if (input.startsWith("/image ")) return attachImage(state, input.slice(7).trim())
   if (input === "/config" || input === "/settings") return configBox(state)
   if (input === "/doctor") return doctorStatus(state)
@@ -506,6 +510,7 @@ async function handleInput(state, input) {
   if (input === "/dragon") return setPet(state, "dragon")
   if (input === "/key" || input.startsWith("/key ")) return saveKeyPrompt(state, input.slice(4).trim(), false)
   if (input.startsWith("/key-add ")) return saveKeyPrompt(state, input.slice(9).trim(), true)
+  if (input === "/provider") return providersStatus(state)
   if (input.startsWith("/provider ")) return setProvider(state, input.slice(10).trim())
   if (input === "/openrouter") return setProvider(state, "openrouter")
   if (input === "/cloudflare" || input === "/workers-ai") return setProvider(state, "cloudflare")
@@ -519,9 +524,12 @@ async function handleInput(state, input) {
   if (input === "/uncensored") return setPresetModel(state, state.config.uncensoredModel || "cognitivecomputations/dolphin-mistral-24b-venice-edition:free")
   if (input === "/copy" || input.startsWith("/copy ")) return copyCodeBlock(state, input.slice(5).trim())
   if (input === "/permissions") return state.ui.box("permissions", [state.ui.row("mode", state.config.permissionMode)])
+  if (input === "/permission") return state.ui.box("permissions", [state.ui.row("mode", state.config.permissionMode), state.ui.row("use", "/read-only /workspace /standard /full-access")])
   if (input.startsWith("/permission ")) {
     return setPermission(state, input.slice(12).trim())
   }
+  const usage = bareSlashUsage(input)
+  if (usage) return usageBox(state, input, usage)
   if (input.startsWith("/")) return safeSlash(state, input)
   input = attachPastedImages(state, input)
   await safeChatOrAction(state, input)
@@ -612,7 +620,40 @@ async function setProvider(state, value) {
 }
 
 export function isLikelyModelId(value) {
-  return /^[a-z0-9_.-]+\/[a-z0-9_.:-]+$/i.test(value)
+  return /^@?[a-z0-9_.-]+(?:\/[a-z0-9_.:-]+)+$/i.test(value)
+}
+
+function modelStatus(state) {
+  state.ui.box("model", [
+    state.ui.row("current", state.config.model),
+    state.ui.row("provider", providerInfo(state.config.provider).title),
+    state.ui.row("choose", "/models then /use <number>"),
+    state.ui.row("exact", "/model provider/model:id"),
+    state.ui.row("cloudflare", "/model @cf/moonshotai/kimi-k2.7-code"),
+  ])
+  return true
+}
+
+function bareSlashUsage(input) {
+  const usage = {
+    "/read": "Use /read <path>.",
+    "/write": "Use /write <path> -- <content>.",
+    "/append": "Use /append <path> -- <content>.",
+    "/mkdir": "Use /mkdir <path>.",
+    "/rm": "Use /rm <path>.",
+    "/run": "Use /run <command>.",
+    "/use": "Run /models first, then /use <number>.",
+    "/tool-preset": "Use /tool-preset all|read|safe|edit|code|autonomous.",
+  }
+  return usage[input] || ""
+}
+
+function usageBox(state, command, message) {
+  state.ui.box("usage", [
+    state.ui.row("command", command),
+    state.ui.row("how", message),
+  ])
+  return true
 }
 
 function copyCodeBlock(state, value) {
@@ -1068,11 +1109,12 @@ export function closestCommand(input) {
     "/actions", "/approve", "/build-mode", "/cerebras", "/changes", "/clear", "/cloudflare", "/cmd", "/components", "/config",
     "/copy", "/diff", "/doctor", "/dragon", "/env", "/exit", "/files", "/full-access", "/git-diff", "/git-status",
     "/groq", "/help", "/huggingface", "/image", "/key", "/key-add", "/keys", "/mcp", "/memory", "/mkdir",
-    "/model", "/models", "/ollama", "/openai", "/openrouter", "/palette", "/permission", "/permissions",
+    "/model", "/models", "/ollama", "/openai", "/openrouter", "/palette", "/permission", "/permissions", "/provider",
     "/pet", "/plan-mode", "/providers", "/read", "/read-only", "/reject", "/remember", "/rollback", "/run",
     "/sambanova", "/skills", "/standard", "/status", "/tasks", "/tool", "/tool-preset", "/tools", "/ui",
     "/uncensored", "/undo", "/use", "/workspace", "/write",
   ]
+  if (commands.includes(head)) return ""
   let best = { command: "", distance: Infinity }
   for (const command of commands) {
     const distance = editDistance(head, command)
