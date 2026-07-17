@@ -67,8 +67,13 @@ Use:
 
 ```text
 /providers
+/providers list
+/provider
+/provider list
 /provider cloudflare
 /provider cloudflare https://your-worker-url
+/provider cloudflare https://your-worker-url @cf/moonshotai/kimi-k2.7-code
+/provider cloudflare ai.itzadhi.in
 /gateway https://your-worker-url
 /provider groq
 /provider ollama

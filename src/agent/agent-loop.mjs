@@ -122,7 +122,7 @@ export function sanitizeAssistantText(value) {
   if (!text) return ""
   if (!hasModelToolMarkup(text)) return text
   const command = extractToolCommand(text)
-  const plainLead = text.split(/<\|tool_calls_section_begin\|>|<tool_calls_section_begin>|<tool_call/i)[0].trim()
+  const plainLead = text.split(/<\|tool_calls_section_begin\|>|<tool_calls_section_begin>|<tool_call|<functions\./i)[0].trim()
   return [
     plainLead || "The model tried to emit a raw tool call instead of a normal answer.",
     "",
@@ -132,15 +132,16 @@ export function sanitizeAssistantText(value) {
 }
 
 function hasModelToolMarkup(value) {
-  return /<\|tool_calls_section_begin\|>|<\|tool_call_begin\|>|<\|tool_call_argument_begin\|>|<tool_calls_section|<tool_call/i.test(String(value || ""))
+  return /<\|tool_calls_section_begin\|>|<\|tool_call_begin\|>|<\|tool_call_argument_begin\|>|<tool_calls_section|<tool_call|<functions\.[a-z0-9_.-]+(?:\s|>)/i.test(String(value || ""))
 }
 
 function extractToolCommand(value) {
   const text = String(value || "")
   const match = text.match(/<\|tool_call_argument_begin\|>([\s\S]*?)(?:<\|tool_call_end\|>|<\|tool_calls_section_end\|>|$)/)
-  if (!match) return ""
+  const xmlMatch = text.match(/<functions\.[^>]+>([\s\S]*?)(?:<\/functions\.[^>]+>|$)/i)
+  if (!match && !xmlMatch) return ""
   try {
-    const data = JSON.parse(match[1].trim())
+    const data = JSON.parse((match?.[1] || xmlMatch?.[1] || "").trim())
     return typeof data.command === "string" ? data.command : ""
   } catch {
     return ""

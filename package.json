@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "twillight",
-  "version": "1.1.11",
+  "version": "1.1.12",
   "displayName": "Twillight",
   "description": "Twillight AI-powered development tool",
   "repository": {

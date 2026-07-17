@@ -192,7 +192,11 @@ async function interactive(state, store, session) {
 
 function requiresExclusiveInput(input) {
   const value = String(input || "").trim().toLowerCase()
-  return value === "/key" || value.startsWith("/key ") || value.startsWith("/key-add ") || value.startsWith("/provider ") || value === "/update" || value === "/update-install" || ["/groq", "/openrouter", "/openai"].includes(value)
+  return value === "/key" || value.startsWith("/key ") || value.startsWith("/key-add ")
+    || value === "/provider" || value.startsWith("/provider ")
+    || value === "/providers" || value.startsWith("/providers ")
+    || value === "/update" || value === "/update-install"
+    || ["/cf", "/cloudflare", "/cerebras", "/github", "/github-models", "/groq", "/hf", "/huggingface", "/ollama", "/openai", "/openrouter", "/sambanova", "/worker", "/workers", "/workers-ai"].includes(value)
 }
 
 async function maybePromptUpdate(state) {
@@ -546,10 +550,20 @@ export function mouseScrollDelta(data) {
 
 async function openCommandPalette(state) {
   if (!process.stdin.isTTY) return "/cmd"
-  state.commandMenu = createCommandMenu()
-  let query = "/"
+  const menu = createCommandMenu()
+  state.commandMenu = menu
+  return openDropdownPalette(state, menu, "/")
+}
+
+async function openProviderPalette(state) {
+  if (!process.stdin.isTTY) return null
+  return openDropdownPalette(state, providerMenuRows(state), "/")
+}
+
+async function openDropdownPalette(state, menu, initialQuery = "/") {
+  let query = initialQuery
   let selected = 0
-  let rows = filterCommandMenu(state.commandMenu, query)
+  let rows = filterCommandMenu(menu, query)
   renderCommandPalette(state, selected, query, rows)
   emitKeypressEvents(process.stdin)
   const wasRaw = process.stdin.isRaw
@@ -557,7 +571,7 @@ async function openCommandPalette(state) {
   process.stdin.resume()
   return new Promise((resolve) => {
     function refresh() {
-      rows = filterCommandMenu(state.commandMenu, query)
+      rows = filterCommandMenu(menu, query)
       selected = rows.length ? Math.max(0, Math.min(selected, rows.length - 1)) : 0
       renderCommandPalette(state, selected, query, rows)
     }
@@ -692,7 +706,9 @@ async function handleInput(state, input) {
   if (input === "/update" || input === "/update-check" || input === "/upgrade" || input === "/updates") return updateStatus(state, true)
   if (input === "/update-install") return updateInstallCommand(state)
   if (input === "/keys") return keysStatus(state)
-  if (input === "/providers") return providersStatus(state)
+  if (input === "/providers list" || input === "/providers status") return providersStatus(state)
+  if (input === "/providers") return chooseProvider(state)
+  if (input.startsWith("/providers ")) return setProvider(state, input.slice(11).trim())
   if (input === "/skills") return skillsStatus(state)
   if (input === "/pet") return petStatus(state)
   if (input.startsWith("/pet ")) return setPet(state, input.slice(5).trim())
@@ -700,19 +716,20 @@ async function handleInput(state, input) {
   if (input === "/dragon") return setPet(state, "dragon")
   if (input === "/key" || input.startsWith("/key ")) return saveKeyPrompt(state, input.slice(4).trim(), false)
   if (input.startsWith("/key-add ")) return saveKeyPrompt(state, input.slice(9).trim(), true)
-  if (input === "/provider") return providersStatus(state)
+  if (input === "/provider") return chooseProvider(state)
+  if (input === "/provider list" || input === "/provider status") return providersStatus(state)
   if (input.startsWith("/provider ")) return setProvider(state, input.slice(10).trim())
   if (input === "/openrouter") return setProvider(state, "openrouter")
-  if (input === "/cloudflare" || input === "/workers-ai") return setProvider(state, "cloudflare")
+  if (input === "/cloudflare" || input === "/workers-ai" || input === "/worker" || input === "/workers" || input === "/cf") return setProvider(state, "cloudflare")
   if (input.startsWith("/cloudflare ")) return setProvider(state, `cloudflare ${input.slice(12).trim()}`)
-  if (input === "/gateway" || input === "/worker") return cloudflareGatewayStatus(state)
+  if (input === "/gateway") return cloudflareGatewayStatus(state)
   if (input.startsWith("/gateway ")) return setCloudflareGateway(state, input.slice(9).trim())
   if (input.startsWith("/worker ")) return setCloudflareGateway(state, input.slice(8).trim())
   if (input === "/groq") return setProvider(state, "groq")
   if (input === "/huggingface" || input === "/hf") return setProvider(state, "huggingface")
   if (input === "/cerebras") return setProvider(state, "cerebras")
   if (input === "/sambanova") return setProvider(state, "sambanova")
-  if (input === "/github-models") return setProvider(state, "github")
+  if (input === "/github-models" || input === "/github") return setProvider(state, "github")
   if (input === "/ollama") return setProvider(state, "ollama")
   if (input === "/openai") return setProvider(state, "openai")
   if (input === "/uncensored") return setPresetModel(state, state.config.uncensoredModel || "cognitivecomputations/dolphin-mistral-24b-venice-edition:free")
@@ -796,34 +813,105 @@ function setPresetModel(state, model) {
   return true
 }
 
+async function chooseProvider(state) {
+  if (!process.stdin.isTTY) return providersStatus(state)
+  const selected = await openProviderPalette(state)
+  if (!selected) {
+    restoreSessionView(state)
+    return true
+  }
+  return setProvider(state, selected.replace(/^\/provider\s+/i, ""))
+}
+
 async function setProvider(state, value) {
-  const parts = String(value || "").trim().split(/\s+/).filter(Boolean)
-  const first = parts.shift() || ""
-  const provider = normalizeProviderName(first) || (isHttpUrl(first) ? "cloudflare" : "")
-  if (!provider) throw new Error(`Use /provider ${providerNames().join("|")}.`)
+  const request = parseProviderRequest(value)
+  const provider = request.provider
+  if (!provider) {
+    return showTwillight(state, `/provider ${value || ""}`.trim(), [
+      `Unknown provider: ${value || "(missing)"}`,
+      "",
+      `Use \`/provider\` to choose, or \`/provider ${providerNames().join("|")}\`.`,
+    ].join("\n"))
+  }
   const info = providerInfo(provider)
+  const previousProvider = normalizeProviderName(state.config.provider)
   state.config.provider = provider
-  state.config.model = info.defaultModel || state.config.model
+  if (request.model) {
+    const inferredProvider = inferProviderFromModel(request.model, provider)
+    if (inferredProvider && inferredProvider !== provider) {
+      return showTwillight(state, `/provider ${value}`.trim(), [
+        `That model looks like it belongs to ${providerInfo(inferredProvider).title}, not ${info.title}.`,
+        "",
+        `Use \`/provider ${inferredProvider} ${request.model}\` or choose a ${info.title} model with \`/models\`.`,
+      ].join("\n"))
+    }
+    state.config.model = request.model
+  } else if (previousProvider !== provider || !state.config.model || !providerSupportsModel(provider, state.config.model)) {
+    state.config.model = info.defaultModel || state.config.model
+  }
   if (provider === "cloudflare") {
-    const url = parts.join(" ").trim() || (isHttpUrl(first) ? first : "")
-    if (url) state.config.cloudflareGatewayUrl = normalizeUrlInput(url)
+    if (request.gatewayUrl) state.config.cloudflareGatewayUrl = normalizeUrlInput(request.gatewayUrl)
   }
   state.provider = createProvider(state.config, state.root, state.ui)
   state.freeModels = []
   state.saveConfig?.()
-  state.ui.box("provider", [
-    state.ui.row("selected", info.title),
-    state.ui.row("model", state.config.model),
-    state.ui.row("key env", apiKeyEnvName(provider) || "none"),
-    state.ui.row("key list env", apiKeysEnvName(provider) || "none"),
-    state.ui.row("keys", String(savedApiKeyCount(state.root, provider))),
-    state.ui.row("free", info.freeFriendly ? "yes" : "no"),
-    ...(provider === "cloudflare" ? [state.ui.row("gateway", state.config.cloudflareGatewayUrl || "default")] : []),
-    state.ui.row("saved", ".ai\\config.yaml"),
-    state.ui.row("hint", provider === "cloudflare" ? "/gateway <url> or /provider cloudflare <url>" : info.noAuth || hasSavedApiKey(state.root, provider) ? "/models to list available models" : `/key ${provider} to save once`),
-  ])
+  showTwillight(state, `/provider ${provider}`, providerSummary(state, provider))
   if (!info.noAuth && !hasSavedApiKey(state.root, provider)) await saveKeyPrompt(state, provider, false)
   return true
+}
+
+export function parseProviderRequest(value) {
+  const parts = String(value || "").trim().split(/\s+/).filter(Boolean)
+  const first = parts.shift() || ""
+  let provider = normalizeProviderName(first)
+  let gatewayUrl = ""
+  let model = ""
+  if (!provider && isUrlLike(first)) {
+    provider = "cloudflare"
+    gatewayUrl = first
+  } else if (!provider && isLikelyModelId(first)) {
+    model = first
+    provider = inferProviderFromModel(first, "")
+  }
+  for (const part of parts) {
+    if (isUrlLike(part)) gatewayUrl = part
+    else if (isLikelyModelId(part)) model = part
+  }
+  return { provider, gatewayUrl, model }
+}
+
+function providerSummary(state, provider) {
+  const info = providerInfo(provider)
+  const keyLine = info.noAuth
+    ? provider === "cloudflare" && savedApiKeyCount(state.root, provider) ? `${savedApiKeyCount(state.root, provider)} saved token(s)` : "not required"
+    : hasSavedApiKey(state.root, provider) ? `${savedApiKeyCount(state.root, provider)} saved/available` : `missing; use /key ${provider}`
+  return [
+    `Provider switched to **${info.title}**.`,
+    "",
+    `- provider: \`${provider}\``,
+    `- model: \`${state.config.model}\``,
+    `- keys: ${keyLine}`,
+    ...(provider === "cloudflare" ? [`- gateway: \`${state.config.cloudflareGatewayUrl || providerInfo("cloudflare").chat}\``] : []),
+    `- saved: \`.ai/config.yaml\``,
+    "",
+    "Use `/models` to load models, `/provider` to switch again, or `/providers list` to view the catalog.",
+  ].join("\n")
+}
+
+function providerMenuRows(state) {
+  const current = normalizeProviderName(state.config.provider)
+  return providerNames().map((name) => {
+    const info = providerInfo(name)
+    const count = savedApiKeyCount(state.root, name)
+    const key = info.noAuth ? count ? `${count} token(s)` : "no key" : count ? `${count} key(s)` : "needs key"
+    const marker = current === name ? "current" : info.freeFriendly ? "free" : "paid"
+    const gateway = name === "cloudflare" ? ` · ${truncate(state.config.cloudflareGatewayUrl || info.chat, 28)}` : ""
+    return {
+      label: info.title,
+      command: `/provider ${name}`,
+      description: `${marker} · ${key} · ${info.defaultModel}${gateway}`,
+    }
+  })
 }
 
 function cloudflareGatewayStatus(state) {
@@ -855,11 +943,23 @@ function setCloudflareGateway(state, value) {
 }
 
 function normalizeUrlInput(value) {
-  return String(value || "").trim().replace(/^["']|["']$/g, "").replace(/\/+$/, "")
+  const raw = String(value || "").trim().replace(/^["']|["']$/g, "").replace(/\/+$/, "")
+  if (raw && !/^https?:\/\//i.test(raw) && isUrlLike(raw)) return `https://${raw}`
+  return raw
 }
 
 function isHttpUrl(value) {
-  return /^https?:\/\/[^\s/$.?#].[^\s]*$/i.test(String(value || "").trim())
+  try {
+    const url = new URL(String(value || "").trim())
+    return ["http:", "https:"].includes(url.protocol) && Boolean(url.hostname)
+  } catch {
+    return false
+  }
+}
+
+function isUrlLike(value) {
+  const text = String(value || "").trim().replace(/^["']|["']$/g, "")
+  return isHttpUrl(text) || /^[a-z0-9](?:[a-z0-9-]*\.)+[a-z]{2,}(?::\d+)?(?:\/\S*)?$/i.test(text)
 }
 
 export function isLikelyModelId(value) {
@@ -872,6 +972,12 @@ function inferProviderFromModel(model, currentProvider = "") {
   if (value.startsWith("@cf/")) return "cloudflare"
   if (value.endsWith(":free")) return "openrouter"
   return normalizeProviderName(currentProvider) || ""
+}
+
+function providerSupportsModel(provider, model) {
+  const selected = normalizeProviderName(provider)
+  const inferred = inferProviderFromModel(model, "")
+  return !inferred || inferred === selected
 }
 
 function modelStatus(state) {
@@ -1130,12 +1236,19 @@ function mcpStatus(state) {
 }
 
 function providersStatus(state) {
-  state.ui.box("providers", providerNames().map((name) => {
-    const info = providerInfo(name)
-    const key = info.noAuth ? "no key" : `${savedApiKeyCount(state.root, name)} key(s)`
-    return state.ui.row(name, `${info.title} · ${info.freeFriendly ? "free-friendly" : "paid"} · ${key} · ${info.defaultModel}`)
-  }))
-  return true
+  const lines = [
+    "Provider catalog",
+    "",
+    ...providerNames().map((name, index) => {
+      const info = providerInfo(name)
+      const selected = normalizeProviderName(state.config.provider) === name ? "selected" : info.freeFriendly ? "free-friendly" : "paid"
+      const key = info.noAuth ? "no key required" : savedApiKeyCount(state.root, name) ? `${savedApiKeyCount(state.root, name)} key(s)` : `needs /key ${name}`
+      return `${index + 1}. **${info.title}** \`${name}\` - ${selected}, ${key}, default \`${info.defaultModel}\``
+    }),
+    "",
+    "Use `/provider` for the dropdown, or `/provider <name>` to switch directly.",
+  ]
+  return showTwillight(state, "/providers list", lines.join("\n"))
 }
 
 function skillsStatus(state) {
@@ -1436,7 +1549,12 @@ export function closestCommand(input) {
     "/dragn": "/dragon",
     "/dragoon": "/dragon",
     "/providr": "/provider",
+    "/provder": "/provider",
     "/providerss": "/providers",
+    "/providerrs": "/providers",
+    "/providerz": "/providers",
+    "/providerlist": "/providers list",
+    "/provider-list": "/providers list",
     "/workr": "/worker",
     "/gate": "/gateway",
     "/model": "/models",

@@ -42,6 +42,10 @@ copy README.md to backup folder
 /models
 /use 1
 /model cohere/north-mini-code:free
+/providers
+/providers list
+/provider
+/provider list
 /provider openrouter
 /provider groq
 /provider cloudflare https://your-worker-url
@@ -54,7 +58,6 @@ copy README.md to backup folder
 /provider ollama
 /provider openai
 /uncensored
-/providers
 /skills
 /pet
 /dragon

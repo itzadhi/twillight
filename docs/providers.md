@@ -81,8 +81,13 @@ openai
 
 ```text
 /providers
+/providers list
+/provider
+/provider list
 /provider openrouter
 /provider cloudflare
+/provider cloudflare https://your-worker-url @cf/moonshotai/kimi-k2.7-code
+/provider cloudflare ai.itzadhi.in
 /provider groq
 /provider huggingface
 /provider cerebras

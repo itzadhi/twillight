@@ -15,7 +15,7 @@ import { canUseNativeRenderer, detectOpenTui } from "../src/ui/opentui-adapter.m
 import { opentuiEnvSchema, readOpenTuiEnv } from "../src/ui/opentui-env.mjs"
 import { virtualComponents } from "../src/ui/virtual-components.mjs"
 import { extractCodeBlocks } from "../src/ui/dashboard.mjs"
-import { closestCommand, isLikelyModelId, mouseScrollDelta } from "../src/cli/index.mjs"
+import { closestCommand, isLikelyModelId, mouseScrollDelta, parseProviderRequest } from "../src/cli/index.mjs"
 import { cloudflareEndpoint, isCloudflareChallengeText, normalizeProviderContent, providerHttpError, responseFromJson } from "../src/providers/openrouter-provider.mjs"
 import { normalizeProviderName, providerInfo, providerNames } from "../src/providers/catalog.mjs"
 import { skillList } from "../src/skills/catalog.mjs"
@@ -75,6 +75,9 @@ assert.equal(apiKeysEnvName("groq"), "GROQ_API_KEYS")
 assert.equal(readCredentials(root).GROQ_API_KEY, "groq-key")
 assert.equal(apiKeyEnvName("ollama"), "")
 assert.equal(normalizeProviderName("hf"), "huggingface")
+assert.equal(normalizeProviderName("workers-ai"), "cloudflare")
+assert.equal(normalizeProviderName("worker"), "cloudflare")
+assert.equal(normalizeProviderName("gateway"), "cloudflare")
 assert.equal(providerInfo("ollama").noAuth, true)
 assert.equal(providerInfo("cloudflare").noAuth, true)
 assert.equal(hasSavedApiKey(root, "cloudflare"), true)
@@ -87,7 +90,7 @@ assert.deepEqual(await getApiKeys(root, "cloudflare", state.ui), ["cf-worker-tok
 delete process.env.TWILLIGHT_WORKER_TOKEN
 assert.equal(savedApiKeyCount(root, "cloudflare"), 1)
 assert.equal(providerInfo("cloudflare").defaultModel, "@cf/moonshotai/kimi-k2.7-code")
-assert.equal(providerInfo("cloudflare").fallbackModels.includes("@cf/zai-org/glm-4.7-flash"), true)
+assert.equal(providerInfo("cloudflare").fallbackModels.includes("@cf/zai/glm-4.7-flash"), true)
 assert.equal(providerNames().includes("sambanova"), true)
 assert.equal(providerNames().includes("cloudflare"), true)
 assert.equal(skillList().some((skill) => skill.id === "plan-first-build"), true)
@@ -178,15 +181,22 @@ assert.equal(isLikelyModelId("llama-3.1-8b-instant"), true)
 assert.equal(closestCommand("/dragom"), "/dragon")
 assert.equal(closestCommand("/cmds"), "/cmd")
 assert.equal(closestCommand("/providr"), "/provider")
+assert.equal(closestCommand("/provder"), "/provider")
+assert.equal(closestCommand("/providerz"), "/providers")
+assert.equal(closestCommand("/provider-list"), "/providers list")
 assert.equal(closestCommand("/gate"), "/gateway")
 assert.equal(closestCommand("/updat"), "/update")
 assert.equal(closestCommand("/provider"), "")
 assert.equal(polishAssistantText("Theusertypedwhatcando.ThislookslikeatypoTheyprobablymeantwhatcanIdo.Ishouldanswerclearlyandhelpfully.").includes(". This"), true)
+assert.deepEqual(parseProviderRequest("@cf/moonshotai/kimi-k2.7-code"), { provider: "cloudflare", gatewayUrl: "", model: "@cf/moonshotai/kimi-k2.7-code" })
+assert.deepEqual(parseProviderRequest("cloudflare ai.itzadhi.in @cf/zai/glm-4.7-flash"), { provider: "cloudflare", gatewayUrl: "ai.itzadhi.in", model: "@cf/zai/glm-4.7-flash" })
+assert.deepEqual(parseProviderRequest("openrouter qwen/qwen3-coder:free"), { provider: "openrouter", gatewayUrl: "", model: "qwen/qwen3-coder:free" })
 assert.equal(polishAssistantText("Theuserasks\"yourmodelname\".ThesystemsaysweareTwillight.Ishouldanswer.").includes("The user asks"), true)
 assert.equal(polishAssistantText(Array(8).fill("Ortheywanttorun has a command to show help").join("\n")).includes("repeated itself"), true)
 assert.equal(polishAssistantText("Ortheywanttorunhasacommandtoshowhelpfortheassistant?".repeat(5)).includes("repeated itself"), true)
 assert.equal(polishAssistantText("I'masenior-gradecodingsystemwithawarmterminalpersonality.Icanhelpinspectfiles.Iunderstandyourproject.Icanusecommands.Ifollowplans.WhatIcanhelpwithincludesdebuggingandbuilds.").includes("I'm a senior-grade coding system"), true)
 assert.equal(sanitizeAssistantText("I'll do it.<|tool_calls_section_begin|><|tool_call_begin|>functions.execute_command<|tool_call_argument_begin|>{\"command\":\"mkdir V:\\\\t34\"}<|tool_call_end|><|tool_calls_section_end|>").includes("Detected draft command"), true)
+assert.equal(sanitizeAssistantText("I'll create it.<functions.execute_command>{\"command\":\"mkdir V:\\\\t34\"}</functions.execute_command>").includes("Detected draft command"), true)
 assert.equal(isLikelyModelId("19"), false)
 const blocks = extractCodeBlocks("```js\nconsole.log('hi')\n```\ntext\n```py\nprint('yo')\n```")
 assert.equal(blocks.length, 2)

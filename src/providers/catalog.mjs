@@ -19,13 +19,13 @@ export const providerCatalog = Object.freeze({
   },
   cloudflare: {
     title: "Cloudflare Workers AI",
-    aliases: ["cloudflare", "workers", "cf", "cf-ai"],
+    aliases: ["cloudflare", "workers", "workers-ai", "worker", "cf", "cf-ai", "gateway"],
     keyEnv: "TWILLIGHT_CLOUDFLARE_GATEWAY_KEY",
     keysEnv: "TWILLIGHT_CLOUDFLARE_GATEWAY_KEYS",
     defaultModel: "@cf/moonshotai/kimi-k2.7-code",
     fallbackModels: [
       "@cf/moonshotai/kimi-k2.7-code",
-      "@cf/zai-org/glm-4.7-flash",
+      "@cf/zai/glm-4.7-flash",
       "@cf/openai/gpt-oss-20b",
       "@cf/meta/llama-3.1-8b-instruct-fast",
     ],
