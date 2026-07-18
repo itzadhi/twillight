@@ -4,7 +4,7 @@ import { dirname, join } from "node:path"
 import readline from "node:readline/promises"
 import { Writable } from "node:stream"
 import { providerInfo, providerNames } from "../providers/catalog.mjs"
-import { bg, clean, clipVisible, rgb, theme, truncate } from "../utils/terminal.mjs"
+import { bg, clean, clipVisible, rgb, theme } from "../utils/terminal.mjs"
 
 export function credentialPath(root) {
   return join(userConfigDir(), "credentials.json")
@@ -196,26 +196,26 @@ export function secretInputFromChunk(chunk) {
 async function promptSecretTui(prompt, options = {}) {
   const provider = options.provider || ""
   let value = ""
-  let renderedLines = 0
   function paint() {
     const rows = secretPromptRows({ prompt, provider, value })
-    if (renderedLines) process.stdout.write(`\x1b[${renderedLines}F`)
-    for (const row of rows) process.stdout.write(`\x1b[2K\r${row}\n`)
-    renderedLines = rows.length
+    process.stdout.write("\x1b[2J\x1b[3J\x1b[H")
+    for (const row of rows) process.stdout.write(`${row}\n`)
   }
   const wasRaw = process.stdin.isRaw
   if (process.stdin.setRawMode) process.stdin.setRawMode(true)
   process.stdin.resume()
+  process.stdout.write("\x1b[?2004h")
   paint()
   return new Promise((resolve, reject) => {
     function cleanup() {
       process.stdin.off("data", onData)
       process.stdout.off?.("resize", onResize)
+      process.stdout.write("\x1b[?2004l")
       if (process.stdin.setRawMode) process.stdin.setRawMode(Boolean(wasRaw))
     }
     function finish() {
       cleanup()
-      process.stdout.write("\x1b[2K\r")
+      process.stdout.write("\x1b[2J\x1b[3J\x1b[H")
       resolve(value.trim())
     }
     function onResize() {
@@ -225,18 +225,27 @@ async function promptSecretTui(prompt, options = {}) {
       const text = Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk || "")
       if (text === "\u0003") {
         cleanup()
+        process.stdout.write("\x1b[2J\x1b[3J\x1b[H")
         reject(new Error("Key entry cancelled."))
         return
       }
-      if (text.includes("\r") || text.includes("\n")) return finish()
-      if (text === "\u007f" || text === "\b") {
+      if (text === "\u001b") {
+        cleanup()
+        process.stdout.write("\x1b[2J\x1b[3J\x1b[H")
+        reject(new Error("Key entry cancelled."))
+        return
+      }
+      if (text === "\u007f" || text === "\b" || text === "\x1b[3~") {
         value = value.slice(0, -1)
         paint()
         return
       }
-      const pasted = secretInputFromChunk(chunk)
+      const lineBreak = text.search(/[\r\n]/)
+      const inputChunk = lineBreak >= 0 ? text.slice(0, lineBreak) : text
+      const pasted = secretInputFromChunk(inputChunk)
+      if (pasted) value += pasted
+      if (lineBreak >= 0) return finish()
       if (!pasted) return
-      value += pasted
       paint()
     }
     process.stdin.on("data", onData)
@@ -245,21 +254,60 @@ async function promptSecretTui(prompt, options = {}) {
 }
 
 function secretPromptRows({ prompt, provider, value }) {
-  const width = Math.max(48, Math.min(Number(process.stdout.columns || 86) - 4, 92))
+  const termWidth = Math.max(60, Number(process.stdout.columns || 100))
+  const termHeight = Math.max(18, Number(process.stdout.rows || 30))
+  const width = Math.max(56, Math.min(termWidth - 8, 92))
   const inner = width - 2
+  const body = width - 4
   const envName = clean(prompt).replace(/:\s*$/, "")
-  const title = ` key ${"─".repeat(Math.max(0, inner - 5))}`
-  const masked = value ? `${"•".repeat(Math.min(value.length, 24))}${value.length > 24 ? ` ${value.length} chars` : ""}` : "paste or type key"
-  return [
-    `${rgb(theme.line, `╭${title}╮`)}`,
-    secretRow(`${rgb(theme.text, "Twillight key vault")} ${rgb(theme.border, "·")} ${rgb(theme.muted, provider || "provider")}`, inner),
-    secretRow(`${rgb(theme.muted, envName.padEnd(18))}${bg(theme.input, ` ${rgb(value ? theme.text : theme.muted, truncate(masked, inner - 22))}${" ".repeat(Math.max(0, inner - 22 - clean(masked).length))} `)}`, inner),
-    secretRow(`${rgb(theme.thought, "Enter")} ${rgb(theme.muted, "save")}   ${rgb(theme.thought, "Paste")} ${rgb(theme.muted, "supported")}   ${rgb(theme.thought, "Ctrl+C")} ${rgb(theme.muted, "cancel")}`, inner),
-    `${rgb(theme.line, `╰${"─".repeat(inner)}╯`)}`,
+  const info = providerInfo(provider)
+  const providerTitle = info.title || provider || "Provider"
+  const masked = secretMask(value, Math.max(20, body - envName.length - 13))
+  const rows = [
+    center(rgb(theme.accent, "Twillight Key Vault"), termWidth),
+    center(rgb(theme.muted, "save once, use everywhere"), termWidth),
+    "",
+    center(rgb(theme.line, `╭${" key setup ".padEnd(inner, "─")}╮`), termWidth),
+    center(secretRow(`${rgb(theme.text, providerTitle)} ${rgb(theme.border, "·")} ${rgb(theme.muted, provider || "provider")}`, inner), termWidth),
+    center(secretRow(rgb(theme.muted, "Your key is masked locally and written to the Twillight vault."), inner), termWidth),
+    center(secretRow("", inner), termWidth),
+    center(secretRow(fieldLine(envName, masked, body, Boolean(value)), inner), termWidth),
+    center(secretRow(statusLine(value, body), inner), termWidth),
+    center(secretRow("", inner), termWidth),
+    center(secretRow(`${rgb(theme.thought, "Enter")} ${rgb(theme.muted, "save")}   ${rgb(theme.thought, "Paste")} ${rgb(theme.muted, "works")}   ${rgb(theme.thought, "Backspace")} ${rgb(theme.muted, "edit")}   ${rgb(theme.thought, "Esc/Ctrl+C")} ${rgb(theme.muted, "cancel")}`, inner), termWidth),
+    center(rgb(theme.line, `╰${"─".repeat(inner)}╯`), termWidth),
   ]
+  const top = Math.max(1, Math.floor((termHeight - rows.length) / 2))
+  return [...Array.from({ length: top }, () => ""), ...rows]
 }
 
 function secretRow(value, width) {
   const clipped = clipVisible(value, width)
   return `${rgb(theme.line, "│")}${clipped}${" ".repeat(Math.max(0, width - clean(clipped).length))}${rgb(theme.line, "│")}`
+}
+
+function fieldLine(label, value, width, active) {
+  const labelText = `${label} `
+  const available = Math.max(10, width - labelText.length - 2)
+  const clipped = clipVisible(value, available)
+  const fill = " ".repeat(Math.max(0, available - clean(clipped).length))
+  return `${rgb(theme.muted, labelText)}${bg(theme.input, ` ${rgb(active ? theme.text : theme.muted, clipped)}${fill} `)}`
+}
+
+function statusLine(value, width) {
+  const status = value
+    ? `${rgb(theme.good, "ready")} ${rgb(theme.muted, `${value.length} chars captured`)}`
+    : `${rgb(theme.muted, "waiting for paste or typing")}`
+  return clipVisible(status, width)
+}
+
+function secretMask(value, max) {
+  if (!value) return "paste or type key"
+  const visible = Math.max(6, Math.min(max - 9, value.length))
+  return `${"*".repeat(visible)} ${value.length} chars`
+}
+
+function center(value, width) {
+  const plain = clean(value)
+  return `${" ".repeat(Math.max(0, Math.floor((width - plain.length) / 2)))}${value}`
 }
