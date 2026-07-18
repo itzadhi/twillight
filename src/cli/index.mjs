@@ -405,6 +405,8 @@ async function readPromptInput(state) {
         if (["a", "y"].includes(String(text || "").toLowerCase())) return done("/approve")
         if (["r", "n"].includes(String(text || "").toLowerCase())) return done("/reject")
       }
+      if (key.ctrl && key.name === "p") return done("/cmd")
+      if (key.name === "tab") return done("/models")
       if (key.name === "return") return done(value)
       if (key.name === "backspace") {
         if (!value) return
@@ -610,6 +612,12 @@ async function openDropdownPalette(state, menu, initialQuery = "/") {
         void shutdown(state, { exit: true })
       }
       if (key.name === "escape") return done(null)
+      if (key.ctrl && key.name === "p") return done(null)
+      if (key.name === "tab") {
+        selected = rows.length ? (selected + 1) % rows.length : 0
+        refresh()
+        return
+      }
       if (key.name === "up" || key.name === "k") {
         selected = rows.length ? (selected - 1 + rows.length) % rows.length : 0
         refresh()
@@ -736,10 +744,10 @@ async function handleInput(state, input) {
     return setProvider(state, providerValue)
   }
   if (input === "/skills") return skillsStatus(state)
+  if (input === "/ai-sdk" || input === "/vercel-ai" || input === "/vercel") return vercelAiStatus(state)
   if (input === "/pet") return petStatus(state)
   if (input.startsWith("/pet ")) return setPet(state, input.slice(5).trim())
-  if (["/dragom", "/dragn", "/dragoon"].includes(input)) return setPet(state, "dragon")
-  if (input === "/dragon") return setPet(state, "dragon")
+  if (["/dragon", "/dragom", "/dragn", "/dragoon"].includes(input)) return setPet(state, "sprite")
   if (input === "/key" || input.startsWith("/key ")) return saveKeyPrompt(state, input.slice(4).trim(), false)
   if (input.startsWith("/key-add ")) return saveKeyPrompt(state, input.slice(9).trim(), true)
   if (input === "/provider") return chooseProvider(state)
@@ -1228,6 +1236,7 @@ function helpText() {
     "- `/files`, `/read`, `/write`, `/append`, `/mkdir`, `/rm`, `/run`",
     "- `/tools` select autonomous tool access",
     "- `/skills` show built-in Twillight skills",
+    "- `/ai-sdk` show Vercel AI SDK, Sandbox, Workflows, and AI Elements setup",
     "- `/mcp` show Twillight MCP server command",
     "- `/doctor` diagnose global install, PATH, and developer identity",
     "- `/update` check npm for a newer Twillight release",
@@ -1296,7 +1305,6 @@ function skillsStatus(state) {
 function petStatus(state, inputLabel = "/pet") {
   const access = petAccess(state.config.pet, state.isProjectDeveloper)
   const active = access.activePet
-  const requested = access.pet
   const lines = [
     "## Pet",
     "",
@@ -1315,16 +1323,30 @@ function petStatus(state, inputLabel = "/pet") {
     "",
     "### Switch",
     `- available: ${petNames().map((name) => `\`${name}\``).join(", ")}`,
-    "- use `/pet sprite` or `/dragon`",
+    "- use `/pet` or `/pet sprite`",
   ]
-  if (!access.allowed) {
-    lines.push(
-      "",
-      `Requested **${requested.title}**, but it is developer-only.`,
-      "Unlock it by running inside the `itzadhi/Twillight` repo, or set `TWILLIGHT_CREATOR=itzadhi` / `TWILLIGHT_DEV=1`.",
-    )
-  }
   return showTwillight(state, inputLabel, lines.join("\n"))
+}
+
+function vercelAiStatus(state) {
+  return showTwillight(state, "/ai-sdk", [
+    "## Vercel AI SDK Skills",
+    "",
+    "Twillight keeps these as project skills so the CLI stays light. Run them only in projects that need them.",
+    "",
+    "- Core AI SDK: `npm i ai`",
+    "- Vercel Sandbox: `npm i @vercel/sandbox`",
+    "- Vercel Workflows: `npm i workflow`",
+    "- AI Elements: `npx ai-elements`",
+    "",
+    "What Twillight uses them for:",
+    "- provider-normalized streaming and tool calls",
+    "- generated-code sandboxing for bigger agent tasks",
+    "- resumable long-running workflows",
+    "- reusable AI UI elements for web apps",
+    "",
+    "Use `/skills` to see the registered Twillight skill cards.",
+  ].join("\n"))
 }
 
 function doctorStatus(state) {
@@ -1342,7 +1364,7 @@ function doctorStatus(state) {
   const issues = []
   if (!pathHasPrefix) issues.push(`npm global prefix is not on PATH: \`${prefix || "unknown"}\``)
   if (/not found/i.test(twillightBin)) issues.push("`twillight` command shim was not found")
-  if (!state.isProjectDeveloper && state.config.pet === "dragon") issues.push("dragon pet is locked outside developer identity")
+  if (!pet.activeName) issues.push("companion failed to load")
   const lines = [
     "## Doctor",
     "",
@@ -1366,12 +1388,12 @@ function doctorStatus(state) {
     `- developer: ${state.isProjectDeveloper ? "yes" : "no"} (${state.developerReason})`,
     "",
     "### Result",
-    issues.length ? issues.map((issue) => `- ${issue}`) : ["- no local install/pet issues detected"],
+    issues.length ? issues.map((issue) => `- ${issue}`) : ["- no local install/companion issues detected"],
     "",
     "### Fixes",
     pathHasPrefix ? "- PATH looks ok" : "- open a new terminal after install, or add npm global prefix to PATH",
     /not found/i.test(twillightBin) ? "- run `npm install -g twillight@latest`" : "- `twillight` command shim found",
-    state.isProjectDeveloper ? "- developer dragon unlocked" : "- to unlock dragon: `set TWILLIGHT_CREATOR=itzadhi` or run inside `itzadhi/Twillight`",
+    "- companion loaded as the single supported pet",
   ].flat()
   return showTwillight(state, "/doctor", lines.join("\n"))
 }
@@ -1461,24 +1483,9 @@ function setPet(state, value) {
       `Available pets: ${petNames().map((pet) => `\`${pet}\``).join(", ")}`,
     ].join("\n"))
   }
-  const access = petAccess(name, state.isProjectDeveloper)
-  if (!access.allowed) {
-    return showTwillight(state, "/dragon", [
-      "Developer dragon is locked.",
-      "",
-      "How Twillight unlocks it:",
-      "- run inside the `itzadhi/Twillight` repository",
-      "- or set `TWILLIGHT_CREATOR=itzadhi`",
-      "- or set `TWILLIGHT_DEV=1`",
-      "",
-      `Current identity: ${state.developerReason}`,
-      "",
-      "Using sprite for now.",
-    ].join("\n"))
-  }
   state.config.pet = name
   state.saveConfig?.()
-  return petStatus(state, name === "dragon" ? "/dragon" : `/pet ${name}`)
+  return petStatus(state, `/pet ${name}`)
 }
 
 function currentPet(state) {
@@ -1699,9 +1706,12 @@ function slashAliases() {
     "/commands": "/cmd",
     "/comands": "/cmd",
     "/command": "/cmd",
-    "/dragom": "/dragon",
-    "/dragn": "/dragon",
-    "/dragoon": "/dragon",
+    "/dragon": "/pet",
+    "/dragom": "/pet",
+    "/dragn": "/pet",
+    "/dragoon": "/pet",
+    "/vercelai": "/ai-sdk",
+    "/vercel-ai-sdk": "/ai-sdk",
     "/providr": "/provider",
     "/provder": "/provider",
     "/providerss": "/providers",
@@ -1720,13 +1730,13 @@ function slashAliases() {
 
 function knownSlashHeads() {
   return [
-    "/actions", "/approve", "/append", "/build-mode", "/cerebras", "/changes", "/clear", "/cloudflare", "/cmd", "/cmds", "/commands",
-    "/components", "/config", "/copy", "/dashboard", "/diff", "/do", "/doctor", "/dragon", "/env", "/exit", "/files", "/full-access",
+    "/actions", "/ai-sdk", "/approve", "/append", "/build-mode", "/cerebras", "/changes", "/clear", "/cloudflare", "/cmd", "/cmds", "/commands",
+    "/components", "/config", "/copy", "/dashboard", "/diff", "/do", "/doctor", "/env", "/exit", "/files", "/full-access",
     "/gateway", "/git", "/git-diff", "/git-status", "/groq", "/help", "/hf", "/huggingface", "/image", "/key", "/key-add", "/keys",
     "/mcp", "/memory", "/mkdir", "/model", "/models", "/ollama", "/openai", "/openrouter", "/palette", "/permission", "/permissions",
     "/pet", "/plan-mode", "/provider", "/providers", "/pwd", "/read", "/read-only", "/reject", "/remember", "/rm", "/rollback",
     "/run", "/sambanova", "/settings", "/skills", "/standard", "/status", "/tasks", "/tool", "/tool-preset", "/tools", "/tools-ui",
-    "/ui", "/uncensored", "/undo", "/update", "/update-check", "/update-install", "/updates", "/upgrade", "/use", "/worker", "/workers",
+    "/ui", "/uncensored", "/undo", "/update", "/update-check", "/update-install", "/updates", "/upgrade", "/use", "/vercel", "/vercel-ai", "/worker", "/workers",
     "/workers-ai", "/workspace", "/write",
   ]
 }
@@ -1737,12 +1747,12 @@ export function closestCommand(input) {
   const alias = slashAlias(value) || slashAlias(head)
   if (alias) return alias
   const commands = [
-    "/actions", "/approve", "/build-mode", "/cerebras", "/changes", "/clear", "/cloudflare", "/cmd", "/components", "/config",
-    "/copy", "/diff", "/doctor", "/dragon", "/env", "/exit", "/files", "/full-access", "/git-diff", "/git-status",
+    "/actions", "/ai-sdk", "/approve", "/build-mode", "/cerebras", "/changes", "/clear", "/cloudflare", "/cmd", "/components", "/config",
+    "/copy", "/diff", "/doctor", "/env", "/exit", "/files", "/full-access", "/git-diff", "/git-status",
     "/gateway", "/groq", "/help", "/huggingface", "/image", "/key", "/key-add", "/keys", "/mcp", "/memory", "/mkdir",
     "/model", "/models", "/ollama", "/openai", "/openrouter", "/palette", "/permission", "/permissions", "/provider",
     "/pet", "/plan-mode", "/providers", "/read", "/read-only", "/reject", "/remember", "/rollback", "/run",
-    "/sambanova", "/skills", "/standard", "/status", "/tasks", "/tool", "/tool-preset", "/tools", "/ui",
+    "/sambanova", "/skills", "/standard", "/status", "/tasks", "/tool", "/tool-preset", "/tools", "/ui", "/vercel", "/vercel-ai",
     "/uncensored", "/undo", "/update", "/update-check", "/update-install", "/use", "/workspace", "/write",
   ]
   if (commands.includes(head)) return ""

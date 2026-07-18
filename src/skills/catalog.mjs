@@ -29,6 +29,30 @@ export const skills = Object.freeze([
     description: "Expose Twillight tools to MCP clients through stdio JSON-RPC.",
     commands: ["twillight-mcp", "/mcp"],
   },
+  {
+    id: "vercel-ai-sdk",
+    title: "Vercel AI SDK",
+    description: "Add provider-normalized streaming, tool calls, and structured generation to web or Node projects.",
+    commands: ["npm i ai", "/ai-sdk"],
+  },
+  {
+    id: "vercel-sandbox",
+    title: "Vercel Sandbox",
+    description: "Run generated code in an isolated project sandbox for larger autonomous build tasks.",
+    commands: ["npm i @vercel/sandbox", "/ai-sdk"],
+  },
+  {
+    id: "vercel-workflows",
+    title: "Vercel Workflows",
+    description: "Use resumable long-running agent workflows when a task should survive timeouts or retries.",
+    commands: ["npm i workflow", "/ai-sdk"],
+  },
+  {
+    id: "ai-elements",
+    title: "AI Elements",
+    description: "Scaffold reusable AI-native UI components for chat, tool calls, messages, and streaming apps.",
+    commands: ["npx ai-elements", "/ai-sdk"],
+  },
 ])
 
 export function skillList() {

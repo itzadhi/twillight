@@ -213,7 +213,7 @@ The folder you launch `twillight` from becomes the active workspace sandbox. Ses
 /skills
 /pet
 /pet sprite
-/dragon
+/ai-sdk
 /doctor
 /clear
 /exit
@@ -228,7 +228,18 @@ The top of the terminal shows quick-access button labels such as:
 
 Type the label shown inside brackets to activate it. Model calls show a `Twillight thinking...` animation while waiting.
 
-`/pet` shows the active companion, its trait, and what it is helping with. `/dragon` unlocks the developer dragon inside the `itzadhi/Twillight` repo or when `TWILLIGHT_CREATOR=itzadhi` / `TWILLIGHT_DEV=1` is set. `/doctor` reports the exact pet/developer identity state plus npm/PATH health.
+`/pet` shows the single Twillight companion, its trait, and what it is helping with. Old dragon spellings are kept only as compatibility aliases and route back to `/pet`. `/doctor` reports companion state plus npm/PATH health.
+
+`/ai-sdk` shows optional Vercel AI SDK skills for projects that need them:
+
+```text
+npm i ai
+npm i @vercel/sandbox
+npm i workflow
+npx ai-elements
+```
+
+These are project skills, not default Twillight dependencies, so the CLI stays fast and light.
 
 ## OpenTUI On Node 20
 

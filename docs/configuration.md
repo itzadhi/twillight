@@ -94,7 +94,7 @@ If the gateway domain has a Cloudflare browser challenge, Twillight will show th
 
 ## Developer Identity
 
-The developer dragon unlocks automatically inside the `itzadhi/Twillight` repository. It can also be enabled explicitly:
+Twillight detects the `itzadhi/Twillight` repository and creator flags for diagnostics, release checks, and local contributor context. The terminal companion is intentionally a single built-in pet so every install behaves the same.
 
 ```cmd
 set TWILLIGHT_CREATOR=itzadhi
@@ -106,7 +106,7 @@ or:
 set TWILLIGHT_DEV=1
 ```
 
-Run `/doctor` to see the detected developer identity reason, current pet, npm global path, and command shim health.
+Run `/doctor` to see the detected developer identity reason, current companion, npm global path, and command shim health.
 
 ## Defaults
 

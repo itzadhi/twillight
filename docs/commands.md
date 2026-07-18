@@ -61,8 +61,8 @@ copy README.md to backup folder
 /skills
 /pet
 /pet sprite
-/dragon
 /doctor
+/ai-sdk
 ```
 
 ## Permissions

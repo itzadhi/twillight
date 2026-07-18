@@ -499,6 +499,20 @@ export async function runSlash(state, input) {
   if (input.startsWith("/remember ")) return remember(state, input.slice(10).trim())
   if (input === "/models") return showModels(state)
   if (input.startsWith("/use ")) return useModel(state, input.slice(5).trim())
+  if (input === "/ai-sdk" || input === "/vercel-ai" || input === "/vercel") {
+    renderChatTurn(state, "/ai-sdk", [
+      "## Vercel AI SDK Skills",
+      "",
+      "- Core AI SDK: `npm i ai`",
+      "- Vercel Sandbox: `npm i @vercel/sandbox`",
+      "- Vercel Workflows: `npm i workflow`",
+      "- AI Elements: `npx ai-elements`",
+      "",
+      "Use these per-project when Twillight needs provider-normalized streaming, generated-code sandboxing, resumable workflows, or AI UI components.",
+    ].join("\n"))
+    keepPromptVisible(state)
+    return true
+  }
   if (input === "/diff") return showChangeDiffs(state)
   if (input === "/git" || input === "/git-status") return showResult(state, "git status", state.registry.run(state, "git_status", {}))
   if (input === "/git-diff" || input === "/git diff") return showResult(state, "git diff", state.registry.run(state, "git_diff", {}))
@@ -720,9 +734,8 @@ export function createCommandMenu() {
     { label: "Keys", command: "/keys", description: "Show saved key counts" },
     { label: "Add key", command: "/key-add openrouter", description: "Add key for rotation" },
     { label: "Skills", command: "/skills", description: "Show built-in skills" },
-    { label: "Pet", command: "/pet", description: "Show pet status" },
-    { label: "Sprite pet", command: "/pet sprite", description: "Use default visual pet" },
-    { label: "Developer dragon", command: "/dragon", description: "Unlock dragon for project dev" },
+    { label: "Vercel AI SDK", command: "/ai-sdk", description: "Show AI SDK, Sandbox, Workflows, and AI Elements setup" },
+    { label: "Companion", command: "/pet", description: "Show companion status" },
     { label: "Uncensored free model", command: "/uncensored", description: "Use Venice uncensored free" },
     { label: "Open diff viewer", command: "/diff", description: "Open diff viewer" },
     { label: "Git status", command: "/git-status", description: "Show repository changes" },

@@ -16,6 +16,10 @@ plan-first-build
 safe-edit
 npm-release
 mcp-tools
+vercel-ai-sdk
+vercel-sandbox
+vercel-workflows
+ai-elements
 ```
 
 Skills are not separate plugins yet. They are built-in workflow profiles that describe what Twillight should do and which commands/tools are involved.
@@ -37,7 +41,7 @@ Small actions such as creating folders, moving files, and reading files still ex
 
 Pets are lightweight session companions. They are visual, but they also expose a useful state line in the sidebar and explain what they are helping with.
 
-Show the active pet, traits, state, and unlock status:
+Show the active companion, traits, and state:
 
 ```text
 /pet
@@ -49,10 +53,21 @@ Switch back to the default companion:
 /pet sprite
 ```
 
-Developer-only dragon:
+Twillight keeps one companion for every install. Old dragon spellings are compatibility aliases that route back to `/pet`.
+
+## Vercel AI Skills
+
+Show optional Vercel integrations:
 
 ```text
-/dragon
+/ai-sdk
 ```
 
-The dragon unlocks inside the `itzadhi/Twillight` repository, or when `TWILLIGHT_CREATOR=itzadhi` / `TWILLIGHT_DEV=1` is set. `/doctor` shows exactly why the dragon is locked or unlocked.
+Twillight lists the project-level commands without installing them into the CLI by default:
+
+```text
+npm i ai
+npm i @vercel/sandbox
+npm i workflow
+npx ai-elements
+```

@@ -351,15 +351,15 @@ function petLine(state) {
 function petPanelLines(state, width) {
   const access = petAccess(state.config.pet, state.isProjectDeveloper)
   const pet = access.activePet
-  const mood = access.allowed ? petLine(state) : access.pet.locked
+  const mood = petLine(state)
   const artWidth = Math.max(6, width - 4)
   const art = (pet.sidebarArt || pet.art || [])
     .slice(0, Math.max(2, width < 24 ? 3 : 5))
-    .map((line) => rgb(access.activeName === "dragon" ? theme.accent : theme.muted, truncate(line, artWidth)))
-  const trait = access.allowed ? pet.mood || pet.role : "developer only"
+    .map((line) => rgb(theme.muted, truncate(line, artWidth)))
+  const trait = pet.mood || pet.role
   return [
     label("Companion"),
-    kv("name", truncate(access.activeName === "dragon" ? "Dragon" : pet.title, width - 10)),
+    kv("name", truncate(pet.title, width - 10)),
     kv("mood", truncate(mood, width - 10)),
     ...art,
     kv("spark", truncate(trait, width - 10)),
@@ -475,8 +475,8 @@ function defaultCommands() {
     { command: "/provider cloudflare", description: "Use Workers AI gateway" },
     { command: "/model @cf/moonshotai/kimi-k2.7-code", description: "Use Cloudflare Kimi code" },
     { command: "/skills", description: "Show skills" },
+    { command: "/ai-sdk", description: "Vercel AI SDK skills" },
     { command: "/pet", description: "Show pet" },
-    { command: "/dragon", description: "Developer dragon pet" },
     { command: "/copy 1", description: "Copy latest code block" },
     { command: "/tools", description: "Select autonomous tools" },
     { command: "/tool-preset autonomous", description: "Enable all tools" },
@@ -689,8 +689,8 @@ function inputWidth() {
 }
 
 function sidebarWidth(width = frameWidth()) {
-  if (width < 118) return 0
-  return Math.min(28, Math.max(22, Math.floor(width * 0.2)))
+  if (width < 96) return 0
+  return Math.min(30, Math.max(22, Math.floor(width * 0.18)))
 }
 
 function centeredInputWidth() {
