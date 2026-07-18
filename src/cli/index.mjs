@@ -61,7 +61,7 @@ export async function main(argv = process.argv.slice(2)) {
     return
   }
 
-  const session = store.create(task || "interactive")
+  const session = store.create(sessionTaskLabel(task))
   const state = createState(root, config, ui, session)
   state.uiEngine = await detectOpenTui()
   ui.clear()
@@ -123,6 +123,15 @@ function createState(root, config, ui, session) {
     reasoningTokens: 0,
     ...developerIdentity(root, config),
   }
+}
+
+function sessionTaskLabel(task) {
+  const value = String(task || "").trim()
+  if (!value) return "interactive"
+  const normalized = normalizeSlashInput(value)
+  if (normalized === "/key" || normalized.startsWith("/key ")) return "key setup"
+  if (normalized === "/key-add" || normalized.startsWith("/key-add ")) return "key setup"
+  return value
 }
 
 function isProjectDeveloperWorkspace(root, config = {}) {
@@ -1335,6 +1344,7 @@ function doctorStatus(state) {
     "## Doctor",
     "",
     `- package: \`${pkg.name || "twillight"}@${pkg.version || "unknown"}\``,
+    `- platform: \`${state.config.platform || process.platform}\``,
     `- workspace: \`${state.root}\``,
     `- npm: \`${globalPrefix.command}\``,
     `- npm global: \`${prefix || globalPrefix.error || "unknown"}\``,
@@ -1582,16 +1592,29 @@ function keysStatus(state) {
 
 async function saveKeyPrompt(state, requestedProvider = "", append = false) {
   if (!process.stdin.isTTY) throw new Error("/key requires interactive terminal input.")
-  const provider = normalizeProviderName(requestedProvider) || state.provider.provider
+  const explicitProvider = normalizeProviderName(String(requestedProvider || "").trim().split(/\s+/)[0])
+  const provider = explicitProvider || state.provider.provider
   const envName = apiKeyEnvName(provider)
   if (!envName) return showTwillight(state, `/key ${provider}`, `${providerInfo(provider).title} does not need an API key.`)
   const key = await promptSecret(`${envName}: `, { ui: state.ui, provider })
   saveApiKey(state.root, provider, key, { append })
-  if (provider === state.provider.provider) state.provider = createProvider(state.config, state.root, state.ui)
+  let switched = false
+  if (explicitProvider) {
+    state.config.provider = provider
+    if (!providerSupportsModel(provider, state.config.model)) state.config.model = providerInfo(provider).defaultModel || state.config.model
+    state.provider = createProvider(state.config, state.root, state.ui)
+    state.freeModels = []
+    state.saveConfig?.()
+    switched = true
+  } else if (provider === state.provider.provider) {
+    state.provider = createProvider(state.config, state.root, state.ui)
+  }
   return showTwillight(state, `/key ${provider}`, [
     "Key saved.",
     "",
     `- provider: \`${provider}\``,
+    ...(switched ? [`- active: switched to **${providerInfo(provider).title}**`] : []),
+    `- model: \`${state.config.model}\``,
     `- status: ${append ? "added" : "saved"}`,
     `- keys: ${savedApiKeyCount(state.root, provider)}`,
     `- file: \`${credentialPath(state.root)}\``,

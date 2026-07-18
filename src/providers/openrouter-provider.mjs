@@ -217,16 +217,23 @@ export async function providerHttpError(response, key, context = {}) {
 }
 
 function providerHttpErrorFromText(response, text, key, context = {}) {
+  const provider = normalizeProviderName(context.provider) || "openrouter"
+  const info = providerInfo(provider)
+  const status = Number(response.status || 0)
   let message = providerErrorFromText(response, text, context)
-  if (context.provider === "cloudflare" && [401, 403].includes(Number(response.status || 0)) && !isCloudflareChallengeText(text)) {
+  if (provider === "cloudflare" && [401, 403].includes(status) && !isCloudflareChallengeText(text)) {
     message = `${message}. ${key ? "The saved Cloudflare gateway token was rejected." : "This Cloudflare gateway requires a token."} Use /key cloudflare to save it, or make the Worker route public.`
+  } else if (!info.noAuth && [401, 403].includes(status)) {
+    const keyHint = provider === "groq" ? " Groq keys usually start with gsk_." : ""
+    message = `${message}. ${info.title} rejected the saved API key.${keyHint} Use /key ${provider} to replace it, or /key-add ${provider} to add another key.`
   }
   const error = new Error(`${message}${key ? ` [key ${maskKey(key)}]` : ""}`)
   error.status = response.status
   error.retryModels = isRetryableProviderFailure(response.status, message)
-  if (context.provider === "cloudflare" && [401, 403].includes(Number(response.status || 0))) {
+  if ((provider === "cloudflare" || !info.noAuth) && [401, 403].includes(status)) {
     error.nonRetryable = true
     error.retryModels = false
+    error.authFailed = true
   }
   if (isCloudflareChallengeText(text)) {
     error.providerBlocked = true
@@ -238,7 +245,8 @@ function providerHttpErrorFromText(response, text, key, context = {}) {
 
 function providerNonJsonError(response, text, context = {}) {
   const challenge = isCloudflareChallengeText(text)
-  const label = providerInfo(context.provider).title
+  const provider = normalizeProviderName(context.provider) || "openrouter"
+  const label = providerInfo(provider).title
   const error = new Error(challenge
     ? cloudflareChallengeMessage(response, context)
     : `${response.status || 200} ${response.statusText || "OK"}: ${label} returned non-JSON from ${context.endpoint || "provider endpoint"}.`)
@@ -276,7 +284,8 @@ export function isCloudflareChallengeText(text) {
 function providerJsonError(data, context = {}) {
   const message = extractProviderErrorMessage(data)
   if (!message) return null
-  const error = new Error(`${providerInfo(context.provider).title} error: ${message}`)
+  const provider = normalizeProviderName(context.provider) || "openrouter"
+  const error = new Error(`${providerInfo(provider).title} error: ${message}`)
   error.status = Number(data.status || data.statusCode || data.code || 0)
   error.retryModels = isRetryableProviderFailure(error.status, message)
   return error
