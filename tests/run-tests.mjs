@@ -18,7 +18,7 @@ import { extractCodeBlocks } from "../src/ui/dashboard.mjs"
 import { closestCommand, isLikelyModelId, mouseScrollDelta, normalizeSlashInput, parseProviderRequest } from "../src/cli/index.mjs"
 import { cloudflareEndpoint, isCloudflareChallengeText, normalizeProviderContent, providerHttpError, responseFromJson } from "../src/providers/openrouter-provider.mjs"
 import { normalizeProviderName, providerInfo, providerNames } from "../src/providers/catalog.mjs"
-import { normalizePetName, petAccess, petSidebarLine } from "../src/pets/catalog.mjs"
+import { normalizePetName, petAccess, petInfo, petSidebarLine } from "../src/pets/catalog.mjs"
 import { skillList } from "../src/skills/catalog.mjs"
 import { isNewerVersion, npmCommandSpec, npmCommandSpecs, npmCliPath, packageMetadata } from "../src/update/checker.mjs"
 
@@ -108,6 +108,9 @@ assert.equal(petAccess("dragon", true).activePet.title, "Lavender Dragon")
 assert.equal(petSidebarLine("dragon", { isDeveloper: true, processing: false }), "dragon awake")
 assert.equal(petSidebarLine("dragon", { isDeveloper: false, processing: false }), "dragon lock")
 assert.equal(petSidebarLine("sprite", { isDeveloper: false, processing: true }), "sprite work")
+assert.equal(petInfo("dragon").art.every((line) => line.length <= 48), true)
+assert.equal(petInfo("dragon").sidebarArt.every((line) => line.length <= 12), true)
+assert.equal(petInfo("sprite").sidebarArt.every((line) => line.length <= 12), true)
 assert.equal(skillList().some((skill) => skill.id === "plan-first-build"), true)
 assert.equal(normalizePath(state, "file.txt").endsWith("file.txt"), true)
 assert.throws(() => normalizePath(state, `${root}2\\escape.txt`, { workspaceOnly: true }))
