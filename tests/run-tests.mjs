@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { loadConfig } from "../src/config/loader.mjs"
-import { apiKeyEnvName, apiKeysEnvName, credentialPath, getApiKeys, hasSavedApiKey, readCredentials, savedApiKeyCount, saveApiKey, writeCredentials } from "../src/config/credentials.mjs"
+import { apiKeyEnvName, apiKeysEnvName, credentialPath, getApiKeys, hasSavedApiKey, readCredentials, savedApiKeyCount, saveApiKey, secretInputFromChunk, writeCredentials } from "../src/config/credentials.mjs"
 import { normalizePath } from "../src/security/path-policy.mjs"
 import { assertCommandAllowed } from "../src/security/command-policy.mjs"
 import { assertPermission } from "../src/security/permissions.mjs"
@@ -84,6 +84,8 @@ assert.equal(apiKeysEnvName("groq"), "GROQ_API_KEYS")
 assert.equal(readCredentials(root).GROQ_API_KEY, "groq-key")
 assert.equal(apiKeyEnvName("ollama"), "")
 assert.equal(normalizeProviderName("hf"), "huggingface")
+assert.equal(secretInputFromChunk(Buffer.from("\x1b[200~gsk_test_key\x1b[201~")), "gsk_test_key")
+assert.equal(secretInputFromChunk("\x1b[Aabc\r"), "abc")
 assert.equal(normalizeProviderName("workers-ai"), "cloudflare")
 assert.equal(normalizeProviderName("worker"), "cloudflare")
 assert.equal(normalizeProviderName("gateway"), "cloudflare")

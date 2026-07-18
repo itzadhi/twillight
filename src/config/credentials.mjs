@@ -4,6 +4,7 @@ import { dirname, join } from "node:path"
 import readline from "node:readline/promises"
 import { Writable } from "node:stream"
 import { providerInfo, providerNames } from "../providers/catalog.mjs"
+import { bg, clean, clipVisible, rgb, theme, truncate } from "../utils/terminal.mjs"
 
 export function credentialPath(root) {
   return join(userConfigDir(), "credentials.json")
@@ -56,7 +57,7 @@ export async function getApiKeys(root, provider, ui) {
   if (saved.length) return saved
   if (!envName || providerInfo(provider).noAuth) return [""]
   if (!process.stdin.isTTY) throw new Error(`${envName} is missing. Run twillight interactively once to save it.`)
-  const value = await promptSecret(`${envName}: `)
+  const value = await promptSecret(`${envName}: `, { ui, provider })
   if (!value) throw new Error(`${envName} was not provided.`)
   saveApiKey(root, provider, value)
   ui.dim(`[Twillight] saved ${envName} to ${credentialPath(root)}`)
@@ -167,7 +168,8 @@ function uniqueKeys(keys) {
   return [...new Set(keys.map((key) => String(key || "").trim()).filter(isUsableKey))]
 }
 
-export async function promptSecret(prompt) {
+export async function promptSecret(prompt, options = {}) {
+  if (options.ui && process.stdin.isTTY && process.stdout.isTTY) return promptSecretTui(prompt, options)
   const output = new Writable({
     write(chunk, _encoding, callback) {
       const text = chunk.toString()
@@ -180,4 +182,84 @@ export async function promptSecret(prompt) {
   rl.close()
   process.stdout.write("\n")
   return answer
+}
+
+export function secretInputFromChunk(chunk) {
+  const text = Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk || "")
+  const cleaned = text
+    .replace(/\x1b\[200~/g, "")
+    .replace(/\x1b\[201~/g, "")
+    .replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, "")
+  return cleaned.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "")
+}
+
+async function promptSecretTui(prompt, options = {}) {
+  const provider = options.provider || ""
+  let value = ""
+  let renderedLines = 0
+  function paint() {
+    const rows = secretPromptRows({ prompt, provider, value })
+    if (renderedLines) process.stdout.write(`\x1b[${renderedLines}F`)
+    for (const row of rows) process.stdout.write(`\x1b[2K\r${row}\n`)
+    renderedLines = rows.length
+  }
+  const wasRaw = process.stdin.isRaw
+  if (process.stdin.setRawMode) process.stdin.setRawMode(true)
+  process.stdin.resume()
+  paint()
+  return new Promise((resolve, reject) => {
+    function cleanup() {
+      process.stdin.off("data", onData)
+      process.stdout.off?.("resize", onResize)
+      if (process.stdin.setRawMode) process.stdin.setRawMode(Boolean(wasRaw))
+    }
+    function finish() {
+      cleanup()
+      process.stdout.write("\x1b[2K\r")
+      resolve(value.trim())
+    }
+    function onResize() {
+      paint()
+    }
+    function onData(chunk) {
+      const text = Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk || "")
+      if (text === "\u0003") {
+        cleanup()
+        reject(new Error("Key entry cancelled."))
+        return
+      }
+      if (text.includes("\r") || text.includes("\n")) return finish()
+      if (text === "\u007f" || text === "\b") {
+        value = value.slice(0, -1)
+        paint()
+        return
+      }
+      const pasted = secretInputFromChunk(chunk)
+      if (!pasted) return
+      value += pasted
+      paint()
+    }
+    process.stdin.on("data", onData)
+    process.stdout.on?.("resize", onResize)
+  })
+}
+
+function secretPromptRows({ prompt, provider, value }) {
+  const width = Math.max(48, Math.min(Number(process.stdout.columns || 86) - 4, 92))
+  const inner = width - 2
+  const envName = clean(prompt).replace(/:\s*$/, "")
+  const title = ` key ${"─".repeat(Math.max(0, inner - 5))}`
+  const masked = value ? `${"•".repeat(Math.min(value.length, 24))}${value.length > 24 ? ` ${value.length} chars` : ""}` : "paste or type key"
+  return [
+    `${rgb(theme.line, `╭${title}╮`)}`,
+    secretRow(`${rgb(theme.text, "Twillight key vault")} ${rgb(theme.border, "·")} ${rgb(theme.muted, provider || "provider")}`, inner),
+    secretRow(`${rgb(theme.muted, envName.padEnd(18))}${bg(theme.input, ` ${rgb(value ? theme.text : theme.muted, truncate(masked, inner - 22))}${" ".repeat(Math.max(0, inner - 22 - clean(masked).length))} `)}`, inner),
+    secretRow(`${rgb(theme.thought, "Enter")} ${rgb(theme.muted, "save")}   ${rgb(theme.thought, "Paste")} ${rgb(theme.muted, "supported")}   ${rgb(theme.thought, "Ctrl+C")} ${rgb(theme.muted, "cancel")}`, inner),
+    `${rgb(theme.line, `╰${"─".repeat(inner)}╯`)}`,
+  ]
+}
+
+function secretRow(value, width) {
+  const clipped = clipVisible(value, width)
+  return `${rgb(theme.line, "│")}${clipped}${" ".repeat(Math.max(0, width - clean(clipped).length))}${rgb(theme.line, "│")}`
 }

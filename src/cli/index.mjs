@@ -1585,7 +1585,7 @@ async function saveKeyPrompt(state, requestedProvider = "", append = false) {
   const provider = normalizeProviderName(requestedProvider) || state.provider.provider
   const envName = apiKeyEnvName(provider)
   if (!envName) return showTwillight(state, `/key ${provider}`, `${providerInfo(provider).title} does not need an API key.`)
-  const key = await promptSecret(`${envName}: `)
+  const key = await promptSecret(`${envName}: `, { ui: state.ui, provider })
   saveApiKey(state.root, provider, key, { append })
   if (provider === state.provider.provider) state.provider = createProvider(state.config, state.root, state.ui)
   return showTwillight(state, `/key ${provider}`, [
