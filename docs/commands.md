@@ -63,6 +63,9 @@ copy README.md to backup folder
 /pet sprite
 /doctor
 /ai-sdk
+/ai-elements
+/vercel-sandbox
+/vercel-workflows
 ```
 
 ## Permissions

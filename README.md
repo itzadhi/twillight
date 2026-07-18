@@ -214,6 +214,9 @@ The folder you launch `twillight` from becomes the active workspace sandbox. Ses
 /pet
 /pet sprite
 /ai-sdk
+/ai-elements
+/vercel-sandbox
+/vercel-workflows
 /doctor
 /clear
 /exit
@@ -230,13 +233,13 @@ Type the label shown inside brackets to activate it. Model calls show a `Twillig
 
 `/pet` shows the single Twillight companion, its trait, and what it is helping with. Old dragon spellings are kept only as compatibility aliases and route back to `/pet`. `/doctor` reports companion state plus npm/PATH health.
 
-`/ai-sdk` shows optional Vercel AI SDK skills for projects that need them:
+Vercel AI commands are first-class slash commands and appear in the command dropdown:
 
 ```text
-npm i ai
-npm i @vercel/sandbox
-npm i workflow
-npx ai-elements
+/ai-sdk             overview and core `npm i ai`
+/ai-elements        `npx ai-elements`
+/vercel-sandbox     `npm i @vercel/sandbox`
+/vercel-workflows   `npm i workflow`
 ```
 
 These are project skills, not default Twillight dependencies, so the CLI stays fast and light.

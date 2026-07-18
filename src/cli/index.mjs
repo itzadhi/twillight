@@ -407,6 +407,7 @@ async function readPromptInput(state) {
       }
       if (key.ctrl && key.name === "p") return done("/cmd")
       if (key.name === "tab") return done("/models")
+      if (!value && text === "/") return done("/cmd")
       if (key.name === "return") return done(value)
       if (key.name === "backspace") {
         if (!value) return
@@ -744,7 +745,10 @@ async function handleInput(state, input) {
     return setProvider(state, providerValue)
   }
   if (input === "/skills") return skillsStatus(state)
-  if (input === "/ai-sdk" || input === "/vercel-ai" || input === "/vercel") return vercelAiStatus(state)
+  if (["/ai-sdk", "/sdk", "/vercel", "/vercel-ai", "/vercel-sdk", "/ai"].includes(input)) return vercelAiStatus(state)
+  if (input === "/vercel-sandbox") return vercelAiStatus(state, "sandbox")
+  if (input === "/vercel-workflows" || input === "/workflows") return vercelAiStatus(state, "workflows")
+  if (input === "/ai-elements" || input === "/elements") return vercelAiStatus(state, "elements")
   if (input === "/pet") return petStatus(state)
   if (input.startsWith("/pet ")) return setPet(state, input.slice(5).trim())
   if (["/dragon", "/dragom", "/dragn", "/dragoon"].includes(input)) return setPet(state, "sprite")
@@ -1328,16 +1332,42 @@ function petStatus(state, inputLabel = "/pet") {
   return showTwillight(state, inputLabel, lines.join("\n"))
 }
 
-function vercelAiStatus(state) {
-  return showTwillight(state, "/ai-sdk", [
+function vercelAiStatus(state, section = "overview") {
+  const details = {
+    overview: [
+      "- Core AI SDK: `npm i ai`",
+      "- Vercel Sandbox: `npm i @vercel/sandbox`",
+      "- Vercel Workflows: `npm i workflow`",
+      "- AI Elements: `npx ai-elements`",
+    ],
+    sandbox: [
+      "- Install: `npm i @vercel/sandbox`",
+      "- Purpose: run generated code in isolated project sandboxes for bigger agent tasks.",
+      "- Use when: Twillight needs to execute generated code without mixing it into your main app first.",
+    ],
+    workflows: [
+      "- Install: `npm i workflow`",
+      "- Purpose: resumable long-running agent flows that survive timeouts and retries.",
+      "- Use when: a build plan has multiple phases and should resume cleanly.",
+    ],
+    elements: [
+      "- Scaffold: `npx ai-elements`",
+      "- Purpose: AI-native UI pieces for messages, tool calls, reasoning, sources, and streaming apps.",
+      "- Use when: Twillight is building a web chat or agent UI.",
+    ],
+  }
+  return showTwillight(state, section === "overview" ? "/ai-sdk" : `/vercel-${section}`, [
     "## Vercel AI SDK Skills",
     "",
     "Twillight keeps these as project skills so the CLI stays light. Run them only in projects that need them.",
     "",
-    "- Core AI SDK: `npm i ai`",
-    "- Vercel Sandbox: `npm i @vercel/sandbox`",
-    "- Vercel Workflows: `npm i workflow`",
-    "- AI Elements: `npx ai-elements`",
+    ...(details[section] || details.overview),
+    "",
+    "Slash commands:",
+    "- `/ai-sdk` overview",
+    "- `/vercel-sandbox` sandbox setup",
+    "- `/vercel-workflows` workflow setup",
+    "- `/ai-elements` UI component scaffold",
     "",
     "What Twillight uses them for:",
     "- provider-normalized streaming and tool calls",
@@ -1710,8 +1740,21 @@ function slashAliases() {
     "/dragom": "/pet",
     "/dragn": "/pet",
     "/dragoon": "/pet",
+    "/aii": "/ai-sdk",
+    "/aisdk": "/ai-sdk",
+    "/ai-sdkd": "/ai-sdk",
+    "/sdk": "/ai-sdk",
+    "/vercel": "/ai-sdk",
     "/vercelai": "/ai-sdk",
+    "/vercel-ai": "/ai-sdk",
     "/vercel-ai-sdk": "/ai-sdk",
+    "/sandbox": "/vercel-sandbox",
+    "/vercel-workflow": "/vercel-workflows",
+    "/workflow": "/vercel-workflows",
+    "/elements": "/ai-elements",
+    "/elemnts": "/ai-elements",
+    "/ai-element": "/ai-elements",
+    "/ai-elemnts": "/ai-elements",
     "/providr": "/provider",
     "/provder": "/provider",
     "/providerss": "/providers",
@@ -1730,13 +1773,13 @@ function slashAliases() {
 
 function knownSlashHeads() {
   return [
-    "/actions", "/ai-sdk", "/approve", "/append", "/build-mode", "/cerebras", "/changes", "/clear", "/cloudflare", "/cmd", "/cmds", "/commands",
+    "/actions", "/ai", "/ai-elements", "/ai-sdk", "/approve", "/append", "/build-mode", "/cerebras", "/changes", "/clear", "/cloudflare", "/cmd", "/cmds", "/commands",
     "/components", "/config", "/copy", "/dashboard", "/diff", "/do", "/doctor", "/env", "/exit", "/files", "/full-access",
     "/gateway", "/git", "/git-diff", "/git-status", "/groq", "/help", "/hf", "/huggingface", "/image", "/key", "/key-add", "/keys",
     "/mcp", "/memory", "/mkdir", "/model", "/models", "/ollama", "/openai", "/openrouter", "/palette", "/permission", "/permissions",
     "/pet", "/plan-mode", "/provider", "/providers", "/pwd", "/read", "/read-only", "/reject", "/remember", "/rm", "/rollback",
     "/run", "/sambanova", "/settings", "/skills", "/standard", "/status", "/tasks", "/tool", "/tool-preset", "/tools", "/tools-ui",
-    "/ui", "/uncensored", "/undo", "/update", "/update-check", "/update-install", "/updates", "/upgrade", "/use", "/vercel", "/vercel-ai", "/worker", "/workers",
+    "/ui", "/uncensored", "/undo", "/update", "/update-check", "/update-install", "/updates", "/upgrade", "/use", "/vercel", "/vercel-ai", "/vercel-sandbox", "/vercel-sdk", "/vercel-workflows", "/workflows", "/worker", "/workers",
     "/workers-ai", "/workspace", "/write",
   ]
 }
@@ -1747,12 +1790,12 @@ export function closestCommand(input) {
   const alias = slashAlias(value) || slashAlias(head)
   if (alias) return alias
   const commands = [
-    "/actions", "/ai-sdk", "/approve", "/build-mode", "/cerebras", "/changes", "/clear", "/cloudflare", "/cmd", "/components", "/config",
+    "/actions", "/ai", "/ai-elements", "/ai-sdk", "/approve", "/build-mode", "/cerebras", "/changes", "/clear", "/cloudflare", "/cmd", "/components", "/config",
     "/copy", "/diff", "/doctor", "/env", "/exit", "/files", "/full-access", "/git-diff", "/git-status",
     "/gateway", "/groq", "/help", "/huggingface", "/image", "/key", "/key-add", "/keys", "/mcp", "/memory", "/mkdir",
     "/model", "/models", "/ollama", "/openai", "/openrouter", "/palette", "/permission", "/permissions", "/provider",
     "/pet", "/plan-mode", "/providers", "/read", "/read-only", "/reject", "/remember", "/rollback", "/run",
-    "/sambanova", "/skills", "/standard", "/status", "/tasks", "/tool", "/tool-preset", "/tools", "/ui", "/vercel", "/vercel-ai",
+    "/sambanova", "/skills", "/standard", "/status", "/tasks", "/tool", "/tool-preset", "/tools", "/ui", "/vercel", "/vercel-ai", "/vercel-sandbox", "/vercel-sdk", "/vercel-workflows", "/workflows",
     "/uncensored", "/undo", "/update", "/update-check", "/update-install", "/use", "/workspace", "/write",
   ]
   if (commands.includes(head)) return ""

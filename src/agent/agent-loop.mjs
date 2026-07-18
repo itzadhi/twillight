@@ -499,7 +499,14 @@ export async function runSlash(state, input) {
   if (input.startsWith("/remember ")) return remember(state, input.slice(10).trim())
   if (input === "/models") return showModels(state)
   if (input.startsWith("/use ")) return useModel(state, input.slice(5).trim())
-  if (input === "/ai-sdk" || input === "/vercel-ai" || input === "/vercel") {
+  if (["/ai-sdk", "/ai", "/sdk", "/vercel", "/vercel-ai", "/vercel-sdk", "/vercel-sandbox", "/vercel-workflows", "/workflows", "/ai-elements", "/elements"].includes(input)) {
+    const topic = input === "/vercel-sandbox"
+      ? "Vercel Sandbox: `npm i @vercel/sandbox` for isolated generated-code execution."
+      : input === "/vercel-workflows" || input === "/workflows"
+        ? "Vercel Workflows: `npm i workflow` for resumable long-running agent tasks."
+        : input === "/ai-elements" || input === "/elements"
+          ? "AI Elements: `npx ai-elements` for chat, tool-call, and streaming UI components."
+          : "Use these per-project when Twillight needs provider-normalized streaming, generated-code sandboxing, resumable workflows, or AI UI components."
     renderChatTurn(state, "/ai-sdk", [
       "## Vercel AI SDK Skills",
       "",
@@ -508,7 +515,7 @@ export async function runSlash(state, input) {
       "- Vercel Workflows: `npm i workflow`",
       "- AI Elements: `npx ai-elements`",
       "",
-      "Use these per-project when Twillight needs provider-normalized streaming, generated-code sandboxing, resumable workflows, or AI UI components.",
+      topic,
     ].join("\n"))
     keepPromptVisible(state)
     return true
@@ -735,6 +742,9 @@ export function createCommandMenu() {
     { label: "Add key", command: "/key-add openrouter", description: "Add key for rotation" },
     { label: "Skills", command: "/skills", description: "Show built-in skills" },
     { label: "Vercel AI SDK", command: "/ai-sdk", description: "Show AI SDK, Sandbox, Workflows, and AI Elements setup" },
+    { label: "AI Elements", command: "/ai-elements", description: "Scaffold AI UI components with npx ai-elements" },
+    { label: "Vercel Sandbox", command: "/vercel-sandbox", description: "Show generated-code sandbox setup" },
+    { label: "Vercel Workflows", command: "/vercel-workflows", description: "Show resumable workflow setup" },
     { label: "Companion", command: "/pet", description: "Show companion status" },
     { label: "Uncensored free model", command: "/uncensored", description: "Use Venice uncensored free" },
     { label: "Open diff viewer", command: "/diff", description: "Open diff viewer" },

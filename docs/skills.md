@@ -61,6 +61,9 @@ Show optional Vercel integrations:
 
 ```text
 /ai-sdk
+/ai-elements
+/vercel-sandbox
+/vercel-workflows
 ```
 
 Twillight lists the project-level commands without installing them into the CLI by default:
