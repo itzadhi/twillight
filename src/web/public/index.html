@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Twillight Web</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Twillight Web</p>
+            <h1>Autonomous coding control panel</h1>
+          </div>
+          <div class="status-pill" id="auth-pill">Checking auth</div>
+        </header>
+
+        <section class="hero-panel" aria-label="Twillight terminal preview">
+          <pre class="ascii" aria-hidden="true">T W I L L I G H T</pre>
+          <p class="subtitle">Configure provider, model, permissions, and Discord access from one calm web cockpit.</p>
+          <div class="terminal-strip">
+            <span>Build</span>
+            <span id="strip-provider">OpenRouter</span>
+            <span id="strip-model">cohere/north-mini-code:free</span>
+            <strong id="strip-cwd">workspace</strong>
+          </div>
+        </section>
+
+        <section class="grid">
+          <form class="panel config-panel" id="config-form">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Project Config</p>
+                <h2>Runtime</h2>
+              </div>
+              <button type="submit">Save config</button>
+            </div>
+
+            <label>
+              Provider
+              <select name="provider" id="provider-select"></select>
+            </label>
+
+            <label>
+              Model
+              <input name="model" id="model-input" autocomplete="off" spellcheck="false">
+            </label>
+
+            <label>
+              Cloudflare gateway URL
+              <input name="cloudflareGatewayUrl" id="gateway-input" autocomplete="off" spellcheck="false" placeholder="https://ai.example.com">
+            </label>
+
+            <div class="segmented" role="group" aria-label="Agent mode">
+              <label><input type="radio" name="agentMode" value="build"> Build</label>
+              <label><input type="radio" name="agentMode" value="plan"> Plan</label>
+            </div>
+
+            <div class="segmented" role="group" aria-label="Permission mode">
+              <label><input type="radio" name="permissionMode" value="read-only"> Read only</label>
+              <label><input type="radio" name="permissionMode" value="workspace"> Workspace</label>
+              <label><input type="radio" name="permissionMode" value="standard"> Standard</label>
+              <label><input type="radio" name="permissionMode" value="full-access"> Full access</label>
+            </div>
+
+            <label>
+              Tools
+              <input name="enabledTools" id="tools-input" autocomplete="off" spellcheck="false">
+            </label>
+
+            <div class="toggles">
+              <label><input type="checkbox" name="updateCheck"> Update checks</label>
+              <label><input type="checkbox" name="autoUpdate"> Auto update prompt</label>
+            </div>
+
+            <p class="save-state" id="save-state">Changes save to .ai/config.yaml. Secrets are never shown here.</p>
+          </form>
+
+          <section class="panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Discord Auth</p>
+                <h2>Access</h2>
+              </div>
+              <a class="button-link" id="discord-login" href="/auth/discord">Login</a>
+            </div>
+            <div class="auth-card" id="auth-card"></div>
+            <div class="setup-box">
+              <strong>Required env</strong>
+              <code>DISCORD_CLIENT_ID</code>
+              <code>DISCORD_CLIENT_SECRET</code>
+              <code>DISCORD_REDIRECT_URI</code>
+              <code>TWILLIGHT_WEB_SESSION_SECRET</code>
+            </div>
+          </section>
+
+          <section class="panel provider-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Provider Catalog</p>
+                <h2>Models</h2>
+              </div>
+              <button type="button" id="use-default">Use default</button>
+            </div>
+            <div id="provider-detail"></div>
+          </section>
+
+          <section class="panel command-panel">
+            <div class="panel-title">
+              <div>
+                <p class="eyebrow">Launch</p>
+                <h2>Commands</h2>
+              </div>
+            </div>
+            <div class="command-list">
+              <code>twillight</code>
+              <code>twillight-web</code>
+              <code>npm run web</code>
+            </div>
+            <p>Run this website inside any project folder and Twillight will use that folder as its workspace.</p>
+          </section>
+        </section>
+      </section>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

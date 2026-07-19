@@ -20,6 +20,7 @@ Creator:
 - [npm Publishing](docs/npm-publishing.md)
 - [Providers](docs/providers.md)
 - [Skills](docs/skills.md)
+- [Web Dashboard](docs/web.md)
 
 ## Run
 
@@ -48,6 +49,16 @@ create file notes.txt with hello
 list files in desktop
 run command node -v
 ```
+
+## Web Dashboard
+
+Run the local browser control panel from any project folder:
+
+```bat
+twillight-web
+```
+
+Open `http://127.0.0.1:4177` to configure provider, model, permissions, tools, Cloudflare gateway, and Discord OAuth access. See [Web Dashboard](docs/web.md).
 
 ## Provider Setup
 

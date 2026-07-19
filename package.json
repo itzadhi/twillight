@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "twillight",
-  "version": "1.1.23",
+  "version": "1.1.24",
   "displayName": "Twillight",
   "description": "Twillight AI-powered development tool",
   "repository": {
@@ -19,13 +19,16 @@
     "start": "node script/run-node.mjs",
     "dev": "node script/run-node.mjs",
     "client": "node script/run-node.mjs",
+    "web": "node src/web/server.mjs",
+    "web:dev": "node src/web/server.mjs",
     "mcp": "node src/mcp/server.mjs",
     "test": "node tests/run-tests.mjs"
   },
   "bin": {
     "twillight": "script/run-node.mjs",
     "twilight": "script/run-node.mjs",
-    "twillight-mcp": "src/mcp/server.mjs"
+    "twillight-mcp": "src/mcp/server.mjs",
+    "twillight-web": "src/web/server.mjs"
   },
   "files": [
     "src",

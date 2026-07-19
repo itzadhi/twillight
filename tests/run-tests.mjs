@@ -21,6 +21,7 @@ import { normalizeProviderName, providerInfo, providerNames } from "../src/provi
 import { normalizePetName, petAccess, petInfo, petSidebarLine } from "../src/pets/catalog.mjs"
 import { skillList } from "../src/skills/catalog.mjs"
 import { isNewerVersion, npmCommandSpec, npmCommandSpecs, npmCliPath, packageMetadata } from "../src/update/checker.mjs"
+import { createDiscordAuthUrl, discordAuthEnabled, publicConfig, providerOptions } from "../src/web/server.mjs"
 
 const root = mkdtempSync(join(tmpdir(), "twillight-"))
 process.env.TWILLIGHT_CONFIG_DIR = join(root, "config")
@@ -294,6 +295,15 @@ assert.equal(groqAuthError.authFailed, true)
 assert.equal(groqAuthError.retryModels, false)
 assert.equal(groqAuthError.message.includes("/key groq"), true)
 assert.equal(loadConfig([]).platform, process.platform)
+assert.equal(discordAuthEnabled({}), false)
+const authUrl = createDiscordAuthUrl({ DISCORD_CLIENT_ID: "client", DISCORD_REDIRECT_URI: "http://127.0.0.1:4177/auth/discord/callback" }, "state123")
+assert.equal(authUrl.includes("discord.com/oauth2/authorize"), true)
+assert.equal(authUrl.includes("scope=identify+email"), true)
+assert.equal(authUrl.includes("state=state123"), true)
+const webPublicConfig = publicConfig({ provider: "cloudflare", model: "@cf/openai/gpt-oss-20b", permissionMode: "workspace", agentMode: "plan", enabledTools: "all", cloudflareGatewayUrl: "https://ai.example.com", updateCheck: true, autoUpdate: false })
+assert.equal(webPublicConfig.provider, "cloudflare")
+assert.equal(webPublicConfig.model, "@cf/openai/gpt-oss-20b")
+assert.equal(providerOptions().some((provider) => provider.name === "groq" && provider.keyEnv === "GROQ_API_KEY"), true)
 
 rmSync(root, { recursive: true, force: true })
 console.log("tests ok")
